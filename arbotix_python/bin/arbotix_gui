@@ -49,6 +49,7 @@ class servoSlider():
         self.enabled = wx.CheckBox(parent, i, name+":")
         self.enabled.SetValue(False)
         self.position.Disable()
+        self.parent = parent
 
     def setPosition(self, angle):
         self.position.SetValue(int(angle*100))
@@ -89,8 +90,8 @@ class controllerGUI(wx.Frame):
         joint_defaults = getJointsFromURDF()
         
         i = 0
-        dynamixels = rospy.get_param('/arbotix/dynamixels', dict())
-        self.servos = list()
+
+        self.servo_slider_list = list()
         self.publishers = list()
         self.relaxers = list()
 
@@ -106,10 +107,10 @@ class controllerGUI(wx.Frame):
             else:
                 self.relaxers.append(None)
             # create slider
-            s = servoSlider(self, min_angle, max_angle, name, i)
-            servoSizer.Add(s.enabled,(i,0), wx.GBSpan(1,1),wx.ALIGN_CENTER_VERTICAL)   
-            servoSizer.Add(s.position,(i,1), wx.GBSpan(1,1),wx.ALIGN_CENTER_VERTICAL)
-            self.servos.append(s)
+            servo_slider = servoSlider(self, min_angle, max_angle, name, i)
+            servoSizer.Add(servo_slider.enabled,(i,0), wx.GBSpan(1,1),wx.ALIGN_CENTER_VERTICAL)
+            servoSizer.Add(servo_slider.position,(i,1), wx.GBSpan(1,1),wx.ALIGN_CENTER_VERTICAL)
+            self.servo_slider_list.append(servo_slider)
             i += 1
 
         # add everything
@@ -140,20 +141,23 @@ class controllerGUI(wx.Frame):
     def enableSliders(self, event):
         servo = event.GetId()
         if event.IsChecked(): 
-            self.servos[servo].position.Enable()
+            self.servo_slider_list[servo].position.Enable()
         else:
-            self.servos[servo].position.Disable()
+            self.servo_slider_list[servo].position.Disable()
             if self.relaxers[servo]:
                 self.relaxers[servo]()
 
     def stateCb(self, msg):        
-        for servo in self.servos:
-            if not servo.enabled.IsChecked():
-                try:
-                    idx = msg.name.index(servo.name)
-                    servo.setPosition(msg.position[idx])
-                except: 
-                    pass
+        for servo in self.servo_slider_list:
+            if servo is not None:
+                if not servo.enabled.IsChecked():
+                    try:
+                        idx = msg.name.index(servo.name)
+                        servo.setPosition(msg.position[idx])
+                    except:
+                        pass
+            else:
+                rospy.logerr("Invalid reference to servo slider!")
 
     def onPaint(self, event=None):
         # this is the wx drawing surface/canvas
@@ -183,7 +187,7 @@ class controllerGUI(wx.Frame):
         
     def onTimer(self, event=None):
         # send joint updates
-        for s,p in zip(self.servos,self.publishers):
+        for s,p in zip(self.servo_slider_list,self.publishers):
             if s.enabled.IsChecked():
                 d = Float64()
                 d.data = s.getPosition()
@@ -200,7 +204,10 @@ class controllerGUI(wx.Frame):
 if __name__ == '__main__':
     # initialize GUI
     rospy.init_node('controllerGUI')
-    app = wx.PySimpleApp()
+
+    #app = wx.PySimpleApp()
+    app = wx.App()
+
     frame = controllerGUI(None, True)
     app.MainLoop()
 

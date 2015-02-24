@@ -98,8 +98,14 @@ class ArbotixROS(ArbotiX):
                 pause = pause or controller.pause
             except Exception as e:
                 if type(e) == KeyError:
-                    rospy.logerr("Unrecognized controller: " + params["type"])
-                else:  
+                    controller_list_str = ""
+                    for key in controller_types:
+                        controller_list_str += key
+                        controller_list_str += " "
+
+                    rospy.logerr(str(type(e)) + str(e))
+                    rospy.logerr("Unrecognized controller: " + params["type"] + " available controllers are: " + controller_list_str)
+                else:
                     rospy.logerr(str(type(e)) + str(e))
 
         # wait for arbotix to start up (especially after reset)

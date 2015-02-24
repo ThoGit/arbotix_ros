@@ -51,6 +51,7 @@ class DynamixelServo(Joint):
             self.range = 360.0
         else:
             self.range = 300.0
+
         self.range = rospy.get_param(n+"range", self.range)
         self.rad_per_tick = radians(self.range)/self.ticks
 
